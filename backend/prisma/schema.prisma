@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  username      String         @unique
+  passwordHash  String
+  credits       Int            @default(20)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  conversations Conversation[]
+
+  @@map("users")
+  @@index([email])
+  @@index([username])
+  @@index([credits])
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  title     String?
+  userId    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@map("conversations")
+  @@index([userId])
+  @@index([userId, updatedAt])
+  @@index([updatedAt])
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  artifacts      CodeArtifact[]
+  createdAt      DateTime      @default(now())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
+  @@index([createdAt])
+}
+
+model CodeArtifact {
+  id              String        @id @default(uuid())
+  messageId       String
+  title           String
+  language        String
+  s3Key           String        // S3 object key for original code
+  s3Url           String        // S3 presigned URL for original code
+  bundledHtmlKey  String?       // S3 object key for bundled HTML (React components)
+  bundledHtmlUrl  String?       // S3 presigned URL for bundled HTML
+  fileSize        Int?          // File size in bytes
+  type            ArtifactType  @default(CODE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  message         Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("code_artifacts")
+  @@index([messageId])
+  @@index([type])
+  @@index([language])
+  @@index([createdAt])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum ArtifactType {
+  CODE
+  HTML
+  CSS
+  REACT
+  JAVASCRIPT
+  TYPESCRIPT
+  PYTHON
+  OTHER
+}
